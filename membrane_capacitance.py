@@ -107,15 +107,18 @@ class q_profile():
           self.q       = None
           self.load_x_q_as_nparray() 
           self.scale_x()                     # scale to the average dimension Xref (class variable)
-          self.q = noisefilt(self.q_noisy)   # get smooth q-profile
+          self.q = noisefilt(self.q_noisy, critfreq=0.05)   # get smoother q-profile
           self.qcorr()                       # correct total charge to 0
+
+          # get the field and potential profiles and the Voltage-drop
+          (self.f, self.p, self.V) = mempot.int_q_twice(self.q_noisy, self.x, fcorr_type="cent_plat_zero")  # V/nm, V, Volts
+
           if q_profile.slices==0: 
              print """This, file %s, is the first instance of class q_profile. 
                       Setting it as a reference (class variable).""" % (self.fname,)
              self.set_q_ref()
           else:
              # old way of obtainind V: self.V  = mempot.get_potential(fname, q_profile.Xref, fcorr_type="cent_plat_zero")  # Volts
-             (self.f, self.p, self.V) = mempot.int_q_twice(self.q, self.x, fcorr_type="cent_plat_zero")  # V/nm, V, Volts
              self.dq = None
              self.c  = None
              self.calc_dq_c()  # get dq and capacity
@@ -172,7 +175,7 @@ class q_profile():
 
 
 
-def noisefilt(data, order=8, critfreq=0.012):
+def noisefilt(data, order=8, critfreq=0.022):
     """ function that smoothens given data by applying butterworth's noise filter """
     b, a = butter(order, critfreq)  # beautiful smoothening filter from scipy.signal; its init
     return filtfilt(b, a, data)  
