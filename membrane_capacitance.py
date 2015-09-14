@@ -18,6 +18,7 @@ import membrane_potential as mempot # Joe's library containing routines for inte
 import IPython
 #import cPickle
 from scipy.signal import butter, filtfilt
+import smoothen_data as sm # small lib from SciPy cookBook with a running-average implementation
 
 # "constants" are capitalized
 NDIM = 3
@@ -95,6 +96,7 @@ class q_profile():
    x_ref       = None # nm
    slices      = 0
    Xref        = 14.8 # average z-box-length [nm] from simulations 
+   smooth_bins = 54   # no. bins used for smoothening of the q-profile
    
 
    def __init__(self, fname):
@@ -107,7 +109,9 @@ class q_profile():
           self.q       = None
           self.load_x_q_as_nparray() 
           self.scale_x()                     # scale to the average dimension Xref (class variable)
-          self.q = noisefilt(self.q_noisy, critfreq=0.05)   # get smoother q-profile
+          #self.q = noisefilt(self.q_noisy, critfreq=0.05)   # get smoother q-profile - the old way with freq-noisefilter
+          self.q = sm.smooth(self.q_noisy, window_len=q_profile.smooth_bins)   # get smoother q-profile
+          self.qerr    = sm.smooth( abs( self.q_noisy - self.q ), window_len=4*q_profile.smooth_bins) # standard deviation-like error of the q-profile
           self.qcorr()                       # correct total charge to 0
 
           # get the field and potential profiles and the Voltage-drop
@@ -136,7 +140,7 @@ class q_profile():
        if len(self.q)!=q_profile.slices:
           print """The number of slices %d of the data from file %s do not agree with 
                    the number of slices %d of the reference %s! Processing stopped.""" %\
-                   (len(self.x), self.fname, q_profile.slices, q_profile.q_ref_fname)
+                   (len(self.q), self.fname, q_profile.slices, q_profile.q_ref_fname)
        else:
           self.dq = self.q - q_profile.q_ref
           self.c  = GRO2uFCM * self.dq / self.V # uF/V.cm2
@@ -145,17 +149,7 @@ class q_profile():
        """ function that symmetrizes the charge profile according to the specified type of symmetry: mirror/transl 
            Does not change the q-profile in-place.
        """
-       symmtypes = ('mirror', 'transl')
-       if not symmtype in symmtypes:
-          raise RuntimeError, 'specified symmetry type %s is misspelled or not supported' % (symmtype,)
-       else:
-          l = len(self.q)
-          if symmtype==symmtypes[0]:
-             return ( self.q[:l/2] + np.flipud(self.q[l/2:]) )/2
-          elif symmtype==symmtypes[1]:
-             return ( self.q[:l/2] +           self.q[l/2:]  )/2
-          else:
-             raise RuntimeError, "Something unexpected happened!!"
+       return symmetrize( self.q, symmtype )
 
    def set_q_ref(self):
        """ (re)sets a reference q-profile (e.g. zero voltage) for this class """
