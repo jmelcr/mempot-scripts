@@ -180,6 +180,22 @@ def noisefilt(data, order=8, critfreq=0.022):
     b, a = butter(order, critfreq)  # beautiful smoothening filter from scipy.signal; its init
     return filtfilt(b, a, data)  
 
+def symmetrize(data, symmtype):
+    """ function that symmetrizes given data according to the specified type of symmetry: mirror/transl 
+        Does not work in-place.
+    """
+    symmtypes = ('mirror', 'transl')
+    if not symmtype in symmtypes:
+       raise RuntimeError, 'specified symmetry type %s is misspelled or not supported' % (symmtype,)
+    else:
+       l = len(data)
+       if symmtype==symmtypes[0]:
+          return ( data[:l/2] + np.flipud(data[l/2:]) ) / 2.0
+       elif symmtype==symmtypes[1]:
+          return ( data[:l/2] +           data[l/2:]  ) / 2.0
+       else:
+          raise RuntimeError, "Something unexpected happened!!"
+
 
 
 
